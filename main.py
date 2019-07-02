@@ -10,7 +10,10 @@ import tensorflow as tf
 
 import chatbot as cb
 
+#params = cb.params
+#print(params)
+
 inp = "Hi"
-reply = cb.output(inp, cb.states, cb.net, cb.sess, cb.chars, cb.vocab, cb.args)
+reply = cb.output(inp, cb.states, cb.net, cb.sess, cb.chars, cb.vocab, **cb.params)
 
 print(reply)

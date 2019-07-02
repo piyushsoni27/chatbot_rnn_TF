@@ -16,28 +16,36 @@ def main():
     assert sys.version_info >= (3, 3), \
     "Must be run in Python 3.3 or later. You are running {}".format(sys.version)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--save_dir', type=str, default='models/reddit',
-                       help='model directory to store checkpointed models')
-    parser.add_argument('-n', type=int, default=500,
-                       help='number of characters to sample')
-    parser.add_argument('--prime', type=str, default=' ',
-                       help='prime text')
-    parser.add_argument('--beam_width', type=int, default=2,
-                       help='Width of the beam for beam search, default 2')
-    parser.add_argument('--temperature', type=float, default=1.0,
-                       help='sampling temperature'
-                       '(lower is more conservative, default is 1.0, which is neutral)')
-    parser.add_argument('--topn', type=int, default=-1,
-                        help='at each step, choose from only this many most likely characters;'
-                        'set to <0 to disable top-n filtering.')
-    parser.add_argument('--relevance', type=float, default=-1.,
-                       help='amount of "relevance masking/MMI (disabled by default):"'
-                       'higher is more pressure, 0.4 is probably as high as it can go without'
-                       'noticeably degrading coherence;'
-                       'set to <0 to disable relevance masking')
-    args = parser.parse_args()
-    states, sess, net, chars, vocab, args = sample_main(args)
-    return states, sess, net, chars, vocab, args
+    
+    params = {'save_dir' : 'models/reddit',
+              'n' : 500,
+              'beam_width' : 2,
+              'temperature' : 1.0,
+              'topn' : -1,
+              'relevance' : -1}
+    
+#    parser.add_argument('--save_dir', type=str, default='models/reddit',
+#                       help='model directory to store checkpointed models')
+#    parser.add_argument('-n', type=int, default=500,
+#                       help='number of characters to sample')
+#    parser.add_argument('--prime', type=str, default=' ',
+#                       help='prime text')
+#    parser.add_argument('--beam_width', type=int, default=2,
+#                       help='Width of the beam for beam search, default 2')
+#    parser.add_argument('--temperature', type=float, default=1.0,
+#                       help='sampling temperature'
+#                       '(lower is more conservative, default is 1.0, which is neutral)')
+#    parser.add_argument('--topn', type=int, default=-1,
+#                        help='at each step, choose from only this many most likely characters;'
+#                        'set to <0 to disable top-n filtering.')
+#    parser.add_argument('--relevance', type=float, default=-1.,
+#                       help='amount of "relevance masking/MMI (disabled by default):"'
+#                       'higher is more pressure, 0.4 is probably as high as it can go without'
+#                       'noticeably degrading coherence;'
+#                       'set to <0 to disable relevance masking')
+ #   args = parser.parse_args()
+    states, sess, net, chars, vocab = sample_main(**params)
+    return states, sess, net, chars, vocab, params
 
 def get_paths(input_path):
     if os.path.isfile(input_path):
@@ -56,8 +64,8 @@ def get_paths(input_path):
         raise ValueError('save_dir is not a valid path.')
     return model_path, os.path.join(save_dir, 'config.pkl'), os.path.join(save_dir, 'chars_vocab.pkl')
 
-def sample_main(args):
-    model_path, config_path, vocab_path = get_paths(args.save_dir)
+def sample_main(save_dir, n, beam_width, temperature, topn, relevance):
+    model_path, config_path, vocab_path = get_paths(save_dir)
     # Arguments passed to sample.py direct us to a saved model.
     # Load the separate arguments by which that model was previously trained.
     # That's saved_args. Use those to load the model.
@@ -68,7 +76,7 @@ def sample_main(args):
         chars, vocab = pickle.load(f)
     # Create the model from the saved arguments, in inference mode.
     print("Creating model...")
-    saved_args.batch_size = args.beam_width
+    saved_args.batch_size = beam_width
     net = Model(saved_args, True)
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -81,14 +89,14 @@ def sample_main(args):
     print("Restoring weights...")
     saver.restore(sess, model_path)
     
-    states = initial_state_with_relevance_masking(net, sess, args.relevance)
+    states = initial_state_with_relevance_masking(net, sess, relevance)
     
-    return states, sess, net, chars, vocab, args
+    return states, sess, net, chars, vocab
     
 
-def output(inp, states, net, sess, chars, vocab, args):
+def output(inp, states, net, sess, chars, vocab, save_dir, n, beam_width, temperature, topn, relevance):
     
-    return chatbot(inp, states, net, sess, chars, vocab, args.n, args.beam_width,args.relevance, args.temperature, args.topn)
+    return chatbot(inp, states, net, sess, chars, vocab, n, beam_width,relevance, temperature, topn)
 
 def initial_state(net, sess):
     # Return freshly initialized model states.
@@ -145,7 +153,7 @@ def chatbot(user_input, states, net, sess, chars, vocab, max_length, beam_width,
         out_chars = []
         for i, char_token in enumerate(computer_response_generator):
             out_chars.append(chars[char_token])
-            print(possibly_escaped_char(out_chars), end='', flush=True)
+#            print(possibly_escaped_char(out_chars), end='', flush=True)
             reply += possibly_escaped_char(out_chars)
             states = forward_text(net, sess, states, relevance, vocab, chars[char_token])
             if i >= max_length: break
@@ -337,7 +345,7 @@ if __name__ == '__main__':
     
 if __name__ == 'chatbot':
     tf.reset_default_graph()
-    states, sess, net, chars, vocab, args = main()
+    states, sess, net, chars, vocab, params = main()
 
     
     
