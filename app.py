@@ -29,7 +29,7 @@ def prediction():
     if request.method == "POST":
         input_string = str(request.form.get('message'))
         print("Input: {}\n".format(input_string))
-        prediction =cb.output(input_string, cb.states, cb.net, cb.sess, cb.chars, cb.vocab, cb.args)
+        prediction =cb.output(input_string, cb.states, cb.net, cb.sess, cb.chars, cb.vocab, **cb.params)
         print("prediction: {}\n".format(prediction))
         return jsonify(prediction)
     else:
